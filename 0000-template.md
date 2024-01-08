@@ -1,4 +1,6 @@
-# Feature Name: (fill me in with a unique ident, `my_awesome_feature`)
+**Note:** This process is loosely defined for now. When creating your RFC, feel free to skip some sections if you don't think they apply.
+
+# Feature Name: (fill me in with a unique ident, `my-awesome-feature`)
 
 ## Summary
 
