@@ -35,7 +35,7 @@ Xilem is roughly separated into two layers:
 - **The reactive layer** handles the app logic and centralized state. Your application's code will call functions from this layer.
 - **The platform layer** handles the document state, depending on the platform.
 
-The reactive layer defines the `View` trait as well as other items for sequences, type-erasure and memoization. A `View` represent a transient node or tree of graphical items, which is return by a declarative function we usually call a "component". An example of component could be:
+The reactive layer defines the `View` trait as well as other items for sequences, type-erasure and memoization. A `View` represents a transient description of one or multiple graphical items, which is usually returned by a declarative function that is often called a "component". An example of component could be:
 
 ```rust
 fn app_logic(data: &mut u32) -> impl View<u32, (), Element = impl Widget> {
@@ -48,15 +48,13 @@ fn app_logic(data: &mut u32) -> impl View<u32, (), Element = impl Widget> {
 
 In that example, `app_logic()` returns a `Column` view which contains two `Button` views. These store the minimum information to represent the concept of two buttons stored in a column.
 
-The `View` trait has an `Element` associated type, which depends on the platform layer, and represents a persisten UI entity. Every time app data changes, a new View is produced. That View is diffed against the app's previous View, and all changes are applied to matching elements: if the new view has a child view that wasn't in the previous version, a new element is added; if the new view no longer has a child view that was in the previous version, the matching element is removed, and so on.
+The `View` trait has an associated type `Element` which represents a persistent UI entity for the underlying platform (eg DOM node, Widget, etc). Every time app data changes, a new View is produced. That View is diffed against the app's previous View, and all changes are applied to matching elements: if the new view has a child view that wasn't in the previous version, a new element is added; if the new view no longer has a child view that was in the previous version, the matching element is removed, and so on.
 
 (In web frameworks that use a virtual DOM, this process is sometimes known as "reconciliation".)
 
 Xilem has multiple platform layers. `xilem_web` is based on the web DOM, whereas the main `xilem` crate is based on Masonry, which provides a native widget tree and some Developer Experience features.
 
-Note that, while the platform layer is sometimes referred to as a "backend", it's somewhat tightly coupled with the reactive layer.
-
-`xilem_web`, `xilem` and any other platforms will each have their own version of the `View` trait, the `ViewSequence` trait, the `AnyView` trait, the `BoxedView` type, and so on.
+Note that, while the platform layer is sometimes referred to as a "backend", it's somewhat tightly coupled with the reactive layer: `xilem_web`, `xilem` and any other platforms will each have their own version of the `View` trait, the `ViewSequence` trait, the `AnyView` trait, the `BoxedView` type, and so on.
 
 ### `xilem`
 
@@ -108,7 +106,7 @@ This means some features in `xilem` may be harder to implement because they won'
 
 By using the Masonry codebase, the Xilem project will move towards concepts Masonry was implementing that Xilem maintainers weren't necessarily considering for Xilem.
 
-Some PRs intended for Xilem may become obsolete once the move to Masonry is complete, because Masonry will go in a different direction from the one this PRs were made for.
+Some PRs intended for Xilem may become obsolete once the move to Masonry is complete, because Masonry will go in a direction that these PRs didn't account for.
 
 
 ## Rationale and alternatives
@@ -117,7 +115,7 @@ Some PRs intended for Xilem may become obsolete once the move to Masonry is comp
 
 The initial suggestion was to use Masonry as it currently exists, as a separate repository.
 
-However, people have brought up that it would make the Xilem development process a lot more complex. Features that reached across crates (`xilem_core`, `xilem`, `masonry`) would need to be rolled out at coordinated pull requests between repositories.
+However, people have brought up that it would make the Xilem development process a lot more complex. Features that reached across crates (`xilem_core`, `xilem`, `masonry`) would need to be rolled out in coordinated pull requests between repositories.
 
 ### Separating at the crate level vs the module level
 
@@ -131,7 +129,7 @@ More importantly, Masonry was built as a potential foundation for *multiple* nat
 
 In any merge between two projects, one has to be the base the other is grafted on.
 
-This RFC was written under the assumption Xilem would move towards Masonry, but the opposite could be possible.
+This RFC was written under the assumption that Masonry would be mostly unchanged and Xilem would be reworked to accomodate it, but it would also be possible to take changes from Masonry and graft them to Xilem's current backend code.
 
 That said, the Motivation section explains why Masonry is a healthier codebase to start from.
 
@@ -143,7 +141,7 @@ The name Masonry was chosen when that crate wasn't officially part of the Linebe
 
 Arguments for:
 
-- "Masonry" is catchy name, easy to pronounce in most european languages.
+- "Masonry" is a catchy name, easy to pronounce in most european languages.
 - The name already exists and the Rust community is vaguely aware of it, to the point is comes up (rarely) in discussions.
 - The name evokes brickwork and building stuff out of sturdy rectangle things. It can evoke having a solid foundation that things are built on top of.
 - I have [the coolest logo idea ever](https://github.com/PoignardAzur/masonry-rs/issues/7).
@@ -179,10 +177,10 @@ In other words, all crates are in a `crates/` directory, except for `xilem/` whi
 
 An earlier draft of this RFC proposed renaming `xilem` to `xilem_native`, creating a placeholder `xilem` crate to inform about the multiple backends, and moving all of them into the `crates/` folder.
 
-Hower, these changes were deemed out of scope for this RFC.
+However, these changes were deemed out of scope for this RFC.
 
 ### Ownership story
 
-We need to agree on a general procedure for publishing and updating crates, including masonry, which is currently owned only by Olivier Faure.
+We need to agree on a general procedure for publishing and updating crates, including Masonry, which is currently owned only by Olivier Faure.
 
-At the very least, if masonry is integrated, its ownership should probably be shared with Raph Levien as a stopgap.
+At the very least, if Masonry is integrated, its ownership should probably be shared with Raph Levien as a stopgap.
