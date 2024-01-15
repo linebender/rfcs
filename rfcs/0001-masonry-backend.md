@@ -52,17 +52,17 @@ The `View` trait has an `Element` associated type, which depends on the platform
 
 (In web frameworks that use a virtual DOM, this process is sometimes known as "reconciliation".)
 
-Xilem has multiple platform layers. `xilem_web` is based on the web DOM, whereas `xilem_native` is based on the Masonry crate, which provides a native widget tree and some Developer Experience features.
+Xilem has multiple platform layers. `xilem_web` is based on the web DOM, whereas the main `xilem` crate is based on Masonry, which provides a native widget tree and some Developer Experience features.
 
 Note that, while the platform layer is sometimes referred to as a "backend", it's somewhat tightly coupled with the reactive layer.
 
-`xilem_web`, `xilem_native` and any other platforms will each have their own version of the `View` trait, the `ViewSequence` trait, the `AnyView` trait, the `BoxedView` type, and so on.
+`xilem_web`, `xilem` and any other platforms will each have their own version of the `View` trait, the `ViewSequence` trait, the `AnyView` trait, the `BoxedView` type, and so on.
 
-### `xilem_native`
+### `xilem`
 
-The element type in `xilem_native` must implement `masonry::Widget`.
+The element type in `xilem` is bound to the `masonry::Widget` trait. Different views defined in Xilem have matching Widget types defined in Masonry, though the correspondence isn't always one-to-one.
 
-Widget in Masonry is a trait that represent units of graphical composition, things like text and buttons and boxes and containers. To implement Widget, a type must:
+`Widget` in Masonry is a trait that represent units of graphical composition, things like text and buttons and boxes and containers. To implement Widget, a type must:
 
 - Be `'static`.
 - Provide info about its children.
@@ -79,23 +79,21 @@ The `https://github.com/linebender/xilem` repository has the following crates in
 
 - `xilem_core/`
 - `xilem_web/`
-- `xilem_native/`
 - `masonry/`
-- `xilem/`, which would only be a placeholder crate pointing to `xilem_web/` or `xilem_native/`.
 
+The main `xilem/` crate is defined at the project root.
 
 ## Implementation strategy
 
 The implementation will require several steps:
 
-- Refactoring Masonry to use the same dependencies Xilem currently uses, especially Glazier, Vello, and Parley insted of druid-shell and Piet.
-- Integrating AccessKit support.
-- Moving the Masonry codebase to the Xilem repository, ideally in a way that preserves commit history.
-- Porting the list of Github Issues in the masonry-rs repository to the Xilem repository.
-- Creating a new `xilem_native` crate on parity with the current Xilem crate.
-- Removing the current xilem crate.
-- Publishing both `xilem_native` and the placeholder `xilem` crate on crates.io.
-- Sharing ownership of the crates with Raph Levien.
+- Refactor Masonry to use the same dependencies Xilem currently uses, especially Glazier, Vello, and Parley insted of druid-shell and Piet.
+- Integrate AccessKit support.
+- Move the Masonry codebase to the `xilem` repository, ideally in a way that preserves commit history.
+- Port the list of Github Issues in the `masonry-rs` repository to the `xilem` repository.
+- Create a temporary `xilem_masonry` crate, aiming for parity with the current Xilem crate.
+- Once parity is reached, replace the current `src/` folder with the contents of `xilem_masonry`. Remove `xilem_masonry/`.
+- Publish `xilem`.
 
 
 ## Drawbacks
@@ -104,11 +102,11 @@ The implementation will require several steps:
 
 This move decouples the reactive layer of xilem from its platform layer by putting them in separate crates.
 
-This means some features in `xilem_native` may be harder to implement because they won't have access to the backend's private code.
+This means some features in `xilem` may be harder to implement because they won't have access to the backend's private code.
 
 ### Jumping to Masonry
 
-By using the Masonry codebase, the Xilem project will move towards concept Masonry was implementing that Xilem maintainers weren't necessarily considering for Xilem.
+By using the Masonry codebase, the Xilem project will move towards concepts Masonry was implementing that Xilem maintainers weren't necessarily considering for Xilem.
 
 Some PRs intended for Xilem may become obsolete once the move to Masonry is complete, because Masonry will go in a different direction from the one this PRs were made for.
 
@@ -119,7 +117,7 @@ Some PRs intended for Xilem may become obsolete once the move to Masonry is comp
 
 The initial suggestion was to use Masonry as it currently exists, as a separate repository.
 
-However, people have brought up that it would make the Xilem development process a lot more complex. Features that reached across crates (`xilem_core`, `xilem_native`, `masonry`) would need to be rolled out at coordinated pull requests between repositories.
+However, people have brought up that it would make the Xilem development process a lot more complex. Features that reached across crates (`xilem_core`, `xilem`, `masonry`) would need to be rolled out at coordinated pull requests between repositories.
 
 ### Separating at the crate level vs the module level
 
@@ -159,8 +157,32 @@ Arguments against:
 
 ## Future possibilities
 
+### Performance features
+
 Xilem has added features over Druid that Masonry doesn't support, notably virtual lists and async support.
 
 I think they're currently under-used in Xilem, so Masonry doesn't need to implement them right away for parity.
 
 In the long term, these features will be very important for eventual performance work.
+
+### Directory structure
+
+Xilem's current directory structure is a bit awkward. It looks like:
+
+- `crates/`
+  - `xilem_core/`
+  - `xilem_web/`
+  - (soon) `masonry/`
+- `src/`
+
+In other words, all crates are in a `crates/` directory, except for `xilem/` which is in the root. This makes it seem like eg `xilem_web` is a dependency of `xilem`, when they're disjoint libraries.
+
+An earlier draft of this RFC proposed renaming `xilem` to `xilem_native`, creating a placeholder `xilem` crate to inform about the multiple backends, and moving all of them into the `crates/` folder.
+
+Hower, these changes were deemed out of scope for this RFC.
+
+### Ownership story
+
+We need to agree on a general procedure for publishing and updating crates, including masonry, which is currently owned only by Olivier Faure.
+
+At the very least, if masonry is integrated, its ownership should probably be shared with Raph Levien as a stopgap.
