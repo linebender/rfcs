@@ -43,6 +43,7 @@ They don't need to be perfect, complete, or even very good when you submit them.
 - Help us discuss and refine the RFC. Linebender contributors will leave comments and suggestions. Ideally at some point relative consensus will be reached. Your RFC is "accepted" if your pull request is merged. If your RFC is accepted, move on to the next step. A closed RFC indicates that the design cannot be accepted in its current form.
 - Linebender contributors are now free to implement (or resume implementing) the RFC in a PR in the matching repo, and an associated tracking issue is created in that repo. You are not required to provide an implementation for your RFC, nor are you entitled to be the one that implements the RFC.
 
+**Note:** this process currently doesn't detail how the community will decide whether an RFC is approved, just that doing so results in the PR being merged. See [issue #2](https://github.com/linebender/rfcs/issues/2) for details.
 
 ## Collaborating
 
