@@ -92,6 +92,29 @@ The implementation will require several steps:
 - Create a temporary `xilem_masonry` crate, aiming for parity with the current Xilem crate.
 - Once parity is reached, replace the current `src/` folder with the contents of `xilem_masonry`. Remove `xilem_masonry/`.
 - Publish `xilem`.
+- Set the `#masonry` zulip stream's description to a link to the masonry-rs repository.
+
+### How `xilem` source code will be affected
+
+The source code for the `xilem` crate is currently located in the `src/` folder in [the `xilem` repository](https://github.com/linebender/xilem/).
+
+That folder includes:
+
+- **`view/` folder:** Exports reactive-layer Views.
+- **`widget/` folder:** Exports platform-layer Widgets.
+- **`app.rs`:** Exports `App` struct.
+- **`app_main.rs`:** Exports `AppLauncher` struct.
+- **`bloom.rs`:** Defines internal `Bloom` struct.
+- **`geometry.rs`:** Exports `Axis` struct.
+- **`id.rs`:** Exports `Id` type.
+- `lib.rs`
+- **`text.rs`:** Exports `render_text()` function.
+
+All of this source code except for the `view/` folder and `app.rs` will be removed.
+
+Xilem will still export a view trait, defined in `src/view/View.rs` using macros from `xilem_core`. Views will be rewritten to have `masonry::Widget` as their `Element` associated type.
+
+The `app.rs` composition root will be rewritten to be a minimal wrapper around Masonry's composition root. The Masonry composition root essentially takes callbacks when being built; these callbacks will be piped to the Xilem reactive architecture (building a view tree, reconciliation, and events).
 
 
 ## Drawbacks
@@ -184,3 +207,5 @@ However, these changes were deemed out of scope for this RFC.
 We need to agree on a general procedure for publishing and updating crates, including Masonry, which is currently owned only by Olivier Faure.
 
 At the very least, if Masonry is integrated, its ownership should probably be shared with Raph Levien as a stopgap.
+
+Other crates that de-facto belong to the Linebender ecosystem are in a similar position, most notably Parley. We expect to bring them under the Linebender umbrella soon.
