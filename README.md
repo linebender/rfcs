@@ -4,7 +4,9 @@ This repository holds suggestions for major changes to the Linebender ecosystem,
 
 RFCs (requests for comments) provide a way for contributors to propose design changes in a specific way. Creating a RFC starts a collaborative process and invites community members to offer feedback and suggest changes or alternative designs.
 
-The process is loosely-defined for now; this repository has been created to document some of the large changes that are expected to occur starting 2024. Hopefully this README should be rewritten before the end of January 2024.
+**A RFC getting accepted signals "The Linebender community intends to implement this".** Actual implementation may take longer or be ultimately unsucessful, at which point other RFCs should be created.
+
+The process is loosely-defined for now; this repository has been created to document some of the large changes that are expected to occur starting 2024. Hopefully this README should be rewritten before the end of June 2024.
 
 Unlike other process of the same name, RFCs in Linebender are expected to cover both external features and internal refactorings, at least at first.
 
@@ -33,14 +35,19 @@ They don't need to be perfect, complete, or even very good when you submit them.
 
 ## The Process
 
-- Fork this repository and create a new branch for your new RFC.
+- **Fork this repository** and create a new branch for your new RFC.
 - Copy 0000-template.md into the rfcs folder and rename it to 0000-my-feature.md, where my-feature is a unique identifier for your feature.
 - Fill out the RFC template with your vision for my-feature. For now, the structure is somewhat loose, and you can skip sections if you feel they don't apply.
-- Create a pull request in this repo. The first comment should include:
+- **Create a pull request** in this repo. The first comment should include:
     - A one-sentence description of what the RFC is about.
     - A link to the "rendered" form of the my-feature.md file. To do so, link directly to the file on your own branch, so then the link stays up to date as the file's contents changes. See #1 for an example of what this looks like.
 - With your PR created, note the PR number assigned to your RFC. Rename your file to PR_NUMBER-my-feature.md (ex: 0007-foo-bar.md), and make sure to update the link to your rendered file.
-- Help us discuss and refine the RFC. Linebender contributors will leave comments and suggestions. Ideally at some point relative consensus will be reached. Your RFC is "accepted" if your pull request is merged. If your RFC is accepted, move on to the next step. A closed RFC indicates that the design cannot be accepted in its current form.
+- **Help us discuss and refine the RFC**. Linebender contributors will leave comments and suggestions. Ideally at some point relative consensus will be reached.
+- Once you feel the RFC has addressed all potential concerns and clearly communicates the change you want to happen, you can submit it for final review by pinging one of the RFC reviewers (see below).
+- **The RFC will be scheduled for discussion** during an Office Hours meeting (see [this Zulip stream](https://xi.zulipchat.com/#narrow/stream/359642-office-hours) for the schedule and agenda of the next Office Hours call).
+- The RFC will be debated during that call. At this point, everyone involved should be familiar with the RFC and most of the relevant information should already have been brought up in the PR discussion.
+- At the end of the call, there will be a vote for whether the RFC is accepted. We will try to get full consensus before accepting an RFC, although Raph Levien is the ultimate decider here.
+- If your RFC is accepted, the pull request will be merged. A closed RFC indicates that the design cannot be accepted in its current form.
 - Linebender contributors are now free to implement (or resume implementing) the RFC in a PR in the matching repo, and an associated tracking issue is created in that repo. You are not required to provide an implementation for your RFC, nor are you entitled to be the one that implements the RFC.
 
 
