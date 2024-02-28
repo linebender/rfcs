@@ -55,6 +55,7 @@ Also there will be more problems to solve, because a mix of strategies will brin
 ## User-facing explanation
 
 We test and support only the latest versions of all our package dependencies.
+
 Our minimum supported Rust version (MSRV) is largely decided by our dependencies and we just document the fact.
 
 
