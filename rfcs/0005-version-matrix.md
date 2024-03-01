@@ -121,8 +121,10 @@ In the future Cargo will be smarter and prevent most of this pain for our users.
 
 ### CI gets an additional MSRV job
 
-In addition to the existing stable Rust toolchain jobs we also add a slightly cut down copy as a MSRV job.
+In addition to the existing stable Rust toolchain jobs we also add a cut down copy as a MSRV job.
 Specifically we need to avoid doing a Clippy pass as different Clippy versions disagree on goals and would result in a deadlock.
+The MSRV job only needs to verify the crates that need to satisfy the MSRV.
+Which is to say that the MSRV job doesn't need to verify examples, tests, benchmarks, or various auxiliary packages in the workspace.
 Crucially the MSRV job can use our one true `Cargo.lock`.
 
 
