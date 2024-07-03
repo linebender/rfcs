@@ -8,7 +8,7 @@ Container widgets won't store child widgets anymore, and will instead store keys
 
 ## Motivation
 
-In Masonry's architecture, containers widgets store their children inside `WidgetPod`s.
+In Masonry's architecture, container widgets store their children inside `WidgetPod`s.
 For instance, the `SizedBox` widget is declared roughly like this:
 
 ```rust
@@ -29,7 +29,7 @@ For instance, Masonry has a `RouteFocusChanged` event that widgets aren't suppos
 Accessibility events include a target widget id and are similarly passed through.
 
 To avoid sending events to the entire tree needlessly, widgets use bloom filters as a heuristic to estimate whether a given widget id is within their subtree.
-This is an imperfect heuristic: bloom filters have more false positives as their number of entries grow, and even without false positives this algorithm can still end up visiting a lot of widgets just to rule them out.
+This is an imperfect heuristic: bloom filters have more false positives as their entry count grows, and even without false positives this algorithm can still end up visiting a lot of widgets just to rule them out.
 
 Performance aside, having widgets own their children means that any new functionality in the widget tree requires adding new event variants and special cases in WidgetPod methods to handle them.
 You can't add a feature that directly mutates a widget's sub-sub-sub-child, you have to route an event meant for the sub-sub-sub-child to be mutated through the tree.
@@ -40,12 +40,12 @@ Storing widgets in an arena accessible from the root both improves performance a
 ## User-facing explanation
 
 Containers widgets store their children through `WidgetPod`s.
-For all intents and purposes, a `WidgetPod<MyWidget>` stores an both an instance of `MyWidget` and some metadata common to all widgets, like its position, size, and various update flags.
+For all intents and purposes, a `WidgetPod<MyWidget>` stores both an instance of `MyWidget` and some metadata common to all widgets, like its position, size, and various update flags.
 
 The root WidgetPod is owned by the `RenderRoot` type.
 
 WidgetPods will gate access to the widget they hold.
-A `WidgetPod<MyWidget>` doesn't not unconditionally give you a `&mut MyWidget` reference; this is to enforce that any code that mutates child widgets will also update invalidation flags and uphold invariants.
+A `WidgetPod<MyWidget>` will never unconditionally give you a `&mut MyWidget` reference; this is to enforce that any code that mutates child widgets will also update invalidation flags and uphold invariants.
 
 There are a few different ways to access child widgets, which we'll cover in turn.
 
@@ -59,10 +59,10 @@ The Masonry architecture revolves around update passes: when the end user does s
 - Paint
 - Accessibility
 
-In some cases, the widget tree's state can be considered "partially valid" in-between those passes.
+In some cases, the widget tree's state can be considered "partially valid" in between those passes.
 Some passes can run multiple times per user event or be skipped entirely.
 
-Widgets are type which implement the Widget trait; this trait has methods linked to passes:
+Widgets are types that implement the Widget trait; this trait has methods linked to passes:
 
 - `on_text_event`,
 - `on_pointer_event`,
@@ -79,7 +79,7 @@ This will indirectly call the child's own implementation of `Widget::on_pointer_
 
 #### Context types
 
-Each pass method of the Widget trait takes a context type as parameter:
+Each pass method of the Widget trait takes a context parameter:
 
 - `on_text_event` has `EventCtx<'_>`,
 - `on_pointer_event` has `EventCtx<'_>`,
@@ -100,7 +100,7 @@ WidgetRef is a rich reference type that carries both a shared reference to the w
 
 You can only get a WidgetRef to a fully valid widget; you can't get a WidgetRef in the middle of a set of passes.
 
-Right now WidgetRef is mostly be created during unit tests: RenderRoot can give you a WidgetRef to either the root or an arbitrary widget whose id you know, which you can use to get information on the state of the widget tree.
+Right now WidgetRef is mostly created during unit tests: RenderRoot can give you a WidgetRef to either the root or an arbitrary widget whose id you know, which you can use to get information on the state of the widget tree.
 
 A WidgetRef can give you a Widget's layout, whether it's hovered/focused/disabled, etc, and can create WidgetRefs of the widget's children.
 
@@ -110,7 +110,7 @@ WidgetMut is another rich reference type, with a mutable reference to the widget
 
 Again, you can only get a WidgetMut to a fully valid widget; you can't get a WidgetMut in the middle of a set of passes.
 
-Developers implementing custom widgets won't *use* WidgetMut a lot, but they must implement methods that lets a consumer with a `WidgetMut<MyWidget>` mutate the MyWidget instance.
+Developers implementing custom widgets won't *use* WidgetMut a lot, but they must implement methods that let a consumer with a `WidgetMut<MyWidget>` mutate the MyWidget instance.
 These methods must both change the fields of MyWidget and use the bundled context object to uphold invariants.
 
 For example:
@@ -124,19 +124,19 @@ impl WidgetMut<'_, MyLabel> {
 }
 ```
 
-(``self.ctx` is of type WidgetCtx, a special context type available to WidgetMut.)
+(`self.ctx` is of type WidgetCtx, a special context type available to WidgetMut.)
 
 This constraint ensures that user code can never forget to uphold invariants (set invalidation flags, send signals, etc) when mutating a widget.
 
-WidgetMut is used in-between user events: RenderRoot can provide a WidgetMut to the root widget on demand.
+WidgetMut is used in between user events: RenderRoot can provide a WidgetMut to the root widget on demand.
 
-Container widgets must implement methods to let users map WidgetMut of parents to WidgetMut of children.
+Container widgets must implement methods to let users map "WidgetMut of a parent" to "WidgetMut of a child".
 
 ### RawWrapper and RawWrapperMut
 
 WidgetRef and WidgetMut can't be accessed in the middle of pass methods.
 
-If developers implementing these pass methods for custom widgets really need a reference to a child widget, context types have an escape hatch in the form of two  methods `get_raw_ref` and `get_raw_mut`.
+If developers implementing these pass methods for custom widgets strongly need a reference to a child widget, context types have an escape hatch in the form of the `get_raw_ref` and `get_raw_mut` methods.
 
 These methods return a RawWrapper/RawWrapperMut which holds both a reference to the child and a context value "scoped" to it.
 
@@ -230,7 +230,7 @@ The bottom line is, there are three ways to implement our arena:
 
 The initial implementation will use solution 1, with an API compatible with solution 3.
 
-The goal is so have a %100 safe (if inefficient) implementation that we can build Masonry on top of, so that once we write the unsafe version we already have a battle-tested API and a test suite for e.g. MIRI.
+The goal is to have a %100 safe (if inefficient) implementation that we can build Masonry on top of, so that once we write the unsafe version we already have a battle-tested API and a test suite for e.g. MIRI.
 
 ### WidgetPod
 
@@ -255,7 +255,7 @@ Because WidgetPod no longer stores either a widget or a state, the following met
 ```
 
 Most of them are currently either unused or used in places where equivalent methods can be found on `SomethingCtx` arguments or on `WidgetRef`.
-Removing and replacing these methods would be the first step of implementing this proposal.
+Removing and replacing these methods would be the first step in implementing this proposal.
 
 The WidgetPod constructors would stay the same: they would only take a Widget (and possibly an Id) as a parameter.
 Because these constructors don't include a reference to the arena, this means a newly-created WidgetPod will need to store a copy of the Widget it's created with.
@@ -269,7 +269,7 @@ enum WidgetPod {
 }
 ```
 
-The implementation might evolve to make this unnecessary, for instance by making it impossible to create a WidgetPod without a reference to the arnea.
+The implementation might evolve to make this unnecessary, for instance by making it impossible to create a WidgetPod without a reference to the arena.
 Doing so would have some knock-on effects that are out of scope for this proposal.
 
 
@@ -287,10 +287,10 @@ Storing widgets in an arena would make it much faster to add new features to Mas
 Something like "sending an accessibility event to the widget with this id" could become as simple as calling `root.get_widget_mut(id).send_event(accessibility_event)`, whereas it currently requires code to be added to multiple modules.
 
 Handling text focus would become easier, handling hot state and pointer capture would become easier, etc.
-I have a backlog of improvements blocked on transitionning to the arena architecture.
+I have a backlog of improvements blocked on transitioning to the arena architecture.
 
 
 ## Future possibilities
 
 - I plan to write a second RFC named "Update passes" which will expand on this current RFC, especially the notions of "partially valid" widgets, the role of context types, restrictions on when the widget tree can be mutated, etc.
-- While we currently use the `WidgetAdded` lifecycle event to keep track of new widget, we might replace it with an entirely different pass, or limit how widgets are added to the arena to make WidgetAdded unnecessary.
+- While we currently use the `WidgetAdded` lifecycle event to keep track of new widgets, we might replace it with an entirely different pass, or limit how widgets are added to the arena to make WidgetAdded unnecessary.
