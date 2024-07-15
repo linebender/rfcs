@@ -152,16 +152,16 @@ This trait includes a set of methods that must be implemented to hook into the d
 ```rust
 // Exact signatures may differ
 trait Widget {
-    on_pointer_event(&mut self, ctx: &mut EventCtx, event: &PointerEvent);
-    on_text_event(&mut self, ctx: &mut EventCtx, event: &TextEvent);
-    on_access_event(&mut self, ctx: &mut EventCtx, event: &AccessEvent);
+    fn on_pointer_event(&mut self, ctx: &mut EventCtx, event: &PointerEvent);
+    fn on_text_event(&mut self, ctx: &mut EventCtx, event: &TextEvent);
+    fn on_access_event(&mut self, ctx: &mut EventCtx, event: &AccessEvent);
 
-    on_update_status(&mut self, ctx: &mut UpdateCtx, event: &StatusChange);
-    layout(&mut self, ctx: &mut LayoutCtx) -> Size;
-    compose(&mut self, ctx: &mut ComposeCtx) -> Size;
+    fn on_update_status(&mut self, ctx: &mut UpdateCtx, event: &StatusChange);
+    fn layout(&mut self, ctx: &mut LayoutCtx) -> Size;
+    fn compose(&mut self, ctx: &mut ComposeCtx) -> Size;
 
-    paint(&mut self, ctx: &mut PaintCtx, scene: &mut Scene);
-    accessibility(&mut self, ctx: &mut AccessCtx);
+    fn paint(&mut self, ctx: &mut PaintCtx, scene: &mut Scene);
+    fn accessibility(&mut self, ctx: &mut AccessCtx);
 
     // ...
 }
