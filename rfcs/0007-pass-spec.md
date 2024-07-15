@@ -12,7 +12,7 @@ It includes these major changes:
 
 ## Motivation
 
-Masonry de-facto has a pass system, where `on_pointer/text/access_event`, `lifecycle`, `layout`, `paint` and `accessibility` passes are run roughly in that order whenever an interaction happens.
+Masonry de-facto has a pass system, where `on_pointer/text/access_event`, `lifecycle`, `layout`, `paint`, and `accessibility` passes are run roughly in that order whenever an interaction happens.
 
 These passes are only loosely documented, and their interactions aren't formally specified.
 For instance, what happens when a layout change triggers a lifecycle event which triggers another layout change isn't specified.
@@ -40,9 +40,9 @@ When an event occurs, the application selects the widget targeted by the event.
 For pointer events, this is either the widget under the pointer or the widget with pointer capture.
 For text and accessibility events, this is the widget with focus.
 
-The widget's event handling method (`on_pointer_event`, `on_text_event` or `on_access_event`) is called.
+The widget's event handling method (`on_pointer_event`, `on_text_event`, or `on_access_event`) is called.
 Then, the same method is called for each of the widget's parents, up to the root.
-This behavior is known in browser as event bubbling.
+This behavior is known in browsers as event bubbling.
 
 
 ### Rewrite passes
@@ -83,8 +83,8 @@ These callbacks can be queued with the `mutate_later()` method of various contex
 Update passes mostly run internal calculations.
 They compute if some widget's property has changed, and send it a matching `on_update_status` event (see "Status" section below).
 
-For instance, if a user presses tab and the event isn't handled in a widget, the framework run the `UPDATE_FOCUS` pass, which will automatically switch keyboard focus to the next focus-accepting widget.
-Both the previously-focused widget and the newly-focused widget will get a `on_update_status` call with relevant values.
+For instance, if a user presses `Tab` and the event isn't handled in a widget, the framework will run the `UPDATE_FOCUS` pass, which will automatically switch keyboard focus to the next focus-accepting widget.
+Both the previously-focused widget and the newly-focused widget will get an `on_update_status` call with relevant values.
 
 #### Layout pass
 
@@ -167,7 +167,7 @@ trait Widget {
 }
 ```
 
-These methods all take a given context type as parameter.
+These methods all take a given context type as a parameter.
 Methods aside, `WidgetMut` references can provide a `MutateCtx` context.
 
 Those context types have many methods, some shared, some unique to a given pass.
@@ -183,7 +183,7 @@ Removing a child widget without using a `MutateCtx` method is a logical error.
 
 ### Other concepts
 
-This section describes concepts mentionned by name elsewhere in the RFCs, and gives them a semi-formal definition for future reference.
+This section describes concepts mentioned by name elsewhere in the RFCs and gives them a semi-formal definition for future reference.
 
 #### Widget status
 
@@ -198,7 +198,7 @@ Statuses include:
 - Having active focus.
 - Being disabled.
 
-When one of these statuses change, the `on_update_status` is called on the widget.
+When one of these statuses changes, the `on_update_status` is called on the widget.
 However, `on_update_status` can be called for reasons other than status changes.
 
 #### Pointer capture
@@ -214,23 +214,24 @@ The hovered status of the capturing widget will be updated, meaning a widget tha
 - The pointer's cursor icon will be updated as if the pointer stayed over the capturing widget.
 - If the widget loses pointer capture for some reason (e.g. the pointer is disconnected), the Widget will get a `PointerLeave` event.
 
-Examples of use-cases for pointer capture include selecting text, dragging a slider, or long-pressing a button.
+Examples of use cases for pointer capture include selecting text, dragging a slider, or long-pressing a button.
 
 #### Focus
 
 Focus marks whether a widget receives text events.
 
-To a give a simple example, when you click a textbox, the textbox gets focus: anything you type on your keyboard will be sent to that textbox.
+To give a simple example, when you click a textbox, the textbox gets focus: anything you type on your keyboard will be sent to that textbox.
 
 Focus can be changed with the tab key, or by clicking on a widget, both which Masonry automatically handles.
 Widgets can also set custom focus behavior.
 
 Note that widgets without text-edition capabilities such as buttons and checkboxes can also get focus.
+For instance, pressing space when a button is focused will trigger that button.
 
 There are two types of focus: active and inactive focus.
 Active focus is the default one; inactive focus is when the window your app runs in has lost focus itself.
 
-In that case, we still mark the widget as focused, but with a different color to signifiy that e.g. typing on the keyboard won't actually affect it.
+In that case, we still mark the widget as focused, but with a different color to signal that e.g. typing on the keyboard won't actually affect it.
 
 
 ## Implementation strategy
@@ -252,13 +253,13 @@ The WidgetAdded event should be removed for `Lifecycle`, and the `WidgetPodInner
 Instead, widgets should be created and added to the widget tree as a single atomic operation.
 To keep the WidgetPod logic simple and avoid too many corner cases, this is only allowed inside the MUTATE pass.
 
-`MutateCtx` should have a `add_child` and a `remove_child` method. 
+`MutateCtx` should have an `add_child` and a `remove_child` method. 
 
 #### Creating widgets with grand-children
 
 If a widget needs to be created with children, then its constructor must take a `MutateCtx` reference.
 
-`MutateCtx` should have a `add_child_with` method which takes a closure and passes it a `MutateCtx` scoped to the future child.
+`MutateCtx` should have an `add_child_with` method which takes a closure and passes it a `MutateCtx` scoped to the future child.
 Calling `add_child` on that `MutateCtx` will then register it as a child of the child being created.
 
 ### Change how methods are recursed
@@ -280,7 +281,7 @@ The MUTATE pass would then go through that queue.
 
 We should add a `compose()` method to the WidgetTrait, a `WidgetPod::compose` method, a `ComposeCtx` type, a `RenderRoot::root_compose()` method, etc.
 
-The `ParentWindowOrigin` lifecyle event should be replaced by this compose pass.
+The `ParentWindowOrigin` lifecycle event should be replaced by this compose pass.
 
 Context types should get a `request_compose()` method.
 
@@ -333,7 +334,7 @@ Unlike the current algorithm where fragments are added to parent fragments, here
 This is `O(N)` instead of `O(N * Depth)`.
 
 We should add `PaintCtx::set_clip_box()` and `PaintCtx::remove_clip_box()` methods so widgets can clip their children.
-In most cases this will be a rectangle, but it can be an arbitrary path, for example a rectangle with rounded corners.
+In most cases this will be a rectangle, but it can be an arbitrary path, like a rectangle with rounded corners.
 
 ### Get full test coverage of Context methods
 
@@ -355,7 +356,7 @@ But it will be visible to Xilem *maintainers*; therefore that pattern should be 
 
 ### Requiring complex architecture for handling passes
 
-This RFC suggests adding one more layer of complexity in WidgetPod for recursing events directly to children, instead of letting container widgets to so in their implementations of trait methods.
+This RFC suggests adding one more layer of complexity in WidgetPod for recursing events directly to children, instead of letting container widgets do so in their implementations of trait methods.
 
 That added complexity should be managed and documented.
 
@@ -386,8 +387,8 @@ We could make a less ambitious RFC where we document the widget behavior more fo
 
 However, these major changes both help us massively simplify Masonry's internal code:
 
-- Having `RenderRoot` be in charge of event targetting means we can get rid of the WidgetPod's "should this event be recursed to the inner widget" logic.
-- Having direct event targetting means we can remove a bunch of `RouteFoobar` events that do nothing but carry a `Foobar` event through the widget tree.
+- Having `RenderRoot` be in charge of event targeting means we can get rid of the WidgetPod's "should this event be recursed to the inner widget" logic.
+- Having direct event targeting means we can remove a bunch of `RouteFoobar` events that do nothing but carry a `Foobar` event through the widget tree.
 - Limiting mutations to the widget tree to a specific pass lets us remove the `WidgetAdded` event and some very thorny logic.
 
 Overall, these changes together will make the new pass system more cohesive and predictable.
@@ -410,10 +411,10 @@ The RFC is vague on the following implementation points:
 - Exact pointer capture behavior.
 - Exact focus behavior.
 - Detailed description of the UPDATE passes.
-- Static limit on number of reruns.
+- Static limit on the number of reruns.
 - The total list of context methods.
 
-We will likely figure them out during implementation and document them in real time.
+We will likely figure them out during implementation and document them in real-time.
 
 
 ## Future possibilities
@@ -430,14 +431,14 @@ Focus needs to be better defined.
 
 The concept of "local focus" vs "active focus" might need a more formal definition.
 
-A related question is how we preserve local focus for situations that "borrow" it? For instance, if you press tab to open a menu, the menu should have focus.
-When the menu is closed, focus should come back to the previous focused element.
+A related question is how we preserve local focus for situations that "borrow" it. For instance, if you press `Tab` to open a menu, the menu should have focus.
+When the menu is closed, focus should go back to the previous focused element.
 
 ### Layout
 
 Right now the layout algorithm is a single-pass traversal of the widget tree which passes down constraints and returns sizes.
 
-In the future, we're likely to shift to a multi-pass algorithm closer to how the web platform does layout, probably intergating with Taffy in the process.
+In the future, we're likely to shift to a multi-pass algorithm closer to how the web platform does layout, probably integrating with Taffy in the process.
 
 ### Skipping layout
 
