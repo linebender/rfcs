@@ -83,7 +83,7 @@ These callbacks can be queued with the `mutate_later()` method of various contex
 Update passes mostly run internal calculations.
 They compute if some widget's property has changed, and send it a matching `on_update_status` event (see "Status" section below).
 
-For instance, if a user presses `Tab` and the event isn't handled in a widget, the framework will run the `UPDATE_FOCUS` pass, which will automatically switch keyboard focus to the next focus-accepting widget.
+For instance, if a user presses `Tab` and the event isn't handled in a widget, Masonry will run the `UPDATE_FOCUS` pass, which will automatically switch keyboard focus to the next focus-accepting widget.
 Both the previously-focused widget and the newly-focused widget will get an `on_update_status` call with relevant values.
 
 #### Layout pass
@@ -92,7 +92,7 @@ The layout pass runs bidirectionally, passing constraints from the top down and 
 
 It is subject to be reworked in the future to be closer to the semantics of web layout engines and the Taffy crate.
 
-Unlike with other passes, container widgets need their `Widget::layout()` method to call the `WidgetPod::layout()` method of their children.
+Unlike with other passes, container widgets' `Widget::layout()` method must call `WidgetPod::layout()` on all of their children.
 Not doing so is a logical bug and will panic when debug assertions are on.
 
 #### Compose pass
@@ -100,7 +100,7 @@ Not doing so is a logical bug and will panic when debug assertions are on.
 The **compose** pass runs top-down and assigns transforms to children.
 Transform-only layout changes (e.g. scrolling) should request compose instead of requesting layout.
 
-The framework automatically calls the `compose` methods of all widgets in the tree, in depth-first preorder, where child order is determined by their position in the `children_ids()` array.
+Masonry automatically calls the `compose` methods of all widgets in the tree, in depth-first preorder, where child order is determined by their position in the `children_ids()` array.
 
 
 ### Display passes
@@ -118,7 +118,7 @@ These nodes together form the accessibility tree.
 Methods for these passes should be written under the assumption that they can be skipped or called multiple times for arbitrary reasons.
 Therefore, their ability to affect the widget tree is limited.
 
-The framework automatically calls these methods for all widgets in the tree in depth-first preorder.
+Masonry automatically calls these methods for all widgets in the tree in depth-first preorder.
 
 
 ### External mutation
@@ -158,7 +158,7 @@ trait Widget {
 
     fn on_update_status(&mut self, ctx: &mut UpdateCtx, event: &StatusChange);
     fn layout(&mut self, ctx: &mut LayoutCtx) -> Size;
-    fn compose(&mut self, ctx: &mut ComposeCtx) -> Size;
+    fn compose(&mut self, ctx: &mut ComposeCtx);
 
     fn paint(&mut self, ctx: &mut PaintCtx, scene: &mut Scene);
     fn accessibility(&mut self, ctx: &mut AccessCtx);
@@ -213,6 +213,9 @@ Conversely, no other widget can get events from the pointer.
 The hovered status of the capturing widget will be updated, meaning a widget that captured a pointer can still lose the "hovered" status.
 - The pointer's cursor icon will be updated as if the pointer stayed over the capturing widget.
 - If the widget loses pointer capture for some reason (e.g. the pointer is disconnected), the Widget will get a `PointerLeave` event.
+
+Masonry should guarantee that pointers can only be captured by one widget at a time.
+Masonry should force the widget to lose pointer capture when some events occur; not just MouseLeave, but also `Tab` being pressed, the window losing focus, the widget being disabled, etc.
 
 Examples of use cases for pointer capture include selecting text, dragging a slider, or long-pressing a button.
 
@@ -296,7 +299,9 @@ The following methods specific to LifecycleCtx should be removed, and replaced w
 For instance, when a widget is created, `WidgetPod` should call a method called `Widget::accepts_focus` on the widget.
 If so, it should add it to the set of widgets accepting focus.
 
-Then when the widget is deleted, it should be removed from that set.
+Then when the widget is deleted (or disabled), it should be removed from that set.
+
+How Masonry keeps track of which widgets accept focus is outside the scope of this RFC.
 
 ### Send lifecycle events directly from RenderRoot
 
@@ -331,7 +336,7 @@ The paint pass should now build the root scene in a single pass.
 - If the clip layer is Some, pop it.
 
 Unlike the current algorithm where fragments are added to parent fragments, here they are added directly to the root.
-This is `O(N)` instead of `O(N * Depth)`.
+This is `O(N)` [instead of `O(N * Depth)`](https://xi.zulipchat.com/#narrow/stream/354396-xilem/topic/The.20mystery.20of.20the.20Xilem.20bomb).
 
 We should add `PaintCtx::set_clip_box()` and `PaintCtx::remove_clip_box()` methods so widgets can clip their children.
 In most cases this will be a rectangle, but it can be an arbitrary path, like a rectangle with rounded corners.
@@ -431,7 +436,7 @@ Focus needs to be better defined.
 
 The concept of "local focus" vs "active focus" might need a more formal definition.
 
-A related question is how we preserve local focus for situations that "borrow" it. For instance, if you press `Tab` to open a menu, the menu should have focus.
+A related question is how we preserve local focus for situations that "borrow" it. For instance, if you press `Alt` to open a menu, the menu should have focus.
 When the menu is closed, focus should go back to the previous focused element.
 
 ### Layout
