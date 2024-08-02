@@ -100,6 +100,11 @@ Not doing so is a logical bug and will panic when debug assertions are on.
 The **compose** pass runs top-down and assigns transforms to children.
 Transform-only layout changes (e.g. scrolling) should request compose instead of requesting layout.
 
+Compose is meant to be a cheaper way to position widgets than layout.
+Because the compose pass is more limited than layout, it's easier to recompute in many situations.
+
+For instance, if a widget in a list changes size, its siblings and parents must be re-laid out to account for the change; whereas changing a given widget's transform only affects its children.
+
 Masonry automatically calls the `compose` methods of all widgets in the tree, in depth-first preorder, where child order is determined by their position in the `children_ids()` array.
 
 
