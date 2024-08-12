@@ -8,11 +8,11 @@ It includes these major changes:
 
 - Container widgets no longer need to recurse pass methods on their children.
 - Widgets can no longer add or remove child widgets in most passes.
-- New update and compose passes.
+- New passes: "update" and "compose".
 
 ## Motivation
 
-Masonry de-facto has a pass system, where `on_pointer/text/access_event`, `lifecycle`, `layout`, `paint`, and `accessibility` passes are run roughly in that order whenever an interaction happens.
+Masonry de-facto already has a pass system, where `on_pointer/text/access_event`, `lifecycle`, `layout`, `paint`, and `accessibility` passes are run roughly in that order whenever an interaction happens.
 
 These passes are only loosely documented, and their interactions aren't formally specified.
 For instance, what happens when a layout change triggers a lifecycle event which triggers another layout change isn't specified.
@@ -47,7 +47,7 @@ This behavior is known in browsers as event bubbling.
 
 ### Rewrite passes
 
-After the event pass, some flags may have been changed, and some values may have been invalidated and need to be recomputed.
+After an event pass, some flags may have been changed, and some values may have been invalidated and need to be recomputed.
 To address these invalidations, Masonry runs a set of **rewrite passes** over the tree:
 
 - **MUTATE** pass.
@@ -78,6 +78,14 @@ These callbacks can be queued with the `mutate_later()` method of various contex
 
 "Mutable access" means that those callbacks are given a `WidgetMut` to the widget that requested them, something that is otherwise only accessible from the owner of the global `RenderRoot` object (see "External Mutation" section).
 
+If a callback is scheduled to run on a widget which is deleted before the callback is run, that callback is silently dropped.
+
+*Note:* The mutate pass is meant to be *an escape hatch**.
+It covers widgets which don't quite fit into the pass system and future use-cases that we didn't foresee while developing Masonry.
+It's more powerful and gives complete access to the tree, but is also slightly more expensive and less idiomatic than doing things in other passes.
+
+Widgets should try to fit their logic into the other passes, and use `mutate_later()` sparsely.
+
 #### UPDATE_XXX passes
 
 Update passes mostly run internal calculations.
@@ -93,7 +101,9 @@ The layout pass runs bidirectionally, passing constraints from the top down and 
 It is subject to be reworked in the future to be closer to the semantics of web layout engines and the Taffy crate.
 
 Unlike with other passes, container widgets' `Widget::layout()` method must call `WidgetPod::layout()` on all of their children.
-Not doing so is a logical bug and will panic when debug assertions are on.
+
+Not doing so is a logical bug.
+When debug assertions are on, Masonry will actively try to detect cases where you forget to compute a child's layout and panic if it finds such a case.
 
 #### Compose pass
 
@@ -181,7 +191,7 @@ There are too many to document here, but we can lay out some general principles:
 - Display passes should be pure and can be skipped occasionally, therefore their context types (`PaintCtx` and `AccessCtx`) can't set invalidation flags or send signals.
 - The `layout` and `compose` passes lay out all widgets, which are transiently invalid during the passes, therefore `LayoutCtx`and `ComposeCtx` cannot access the size and position of the `self` widget.
 They can access the layout of children if they have already been laid out.
-- For the same reason reason, `LayoutCtx`and `ComposeCtx` cannot create a `WidgetRef` reference to a child.
+- For the same reason, `LayoutCtx`and `ComposeCtx` cannot create a `WidgetRef` reference to a child.
 - As mentioned above, only `MutateCtx` can create new widgets, and add and remove child widgets.
 Removing a child widget without using a `MutateCtx` method is a logical error.
 
@@ -213,7 +223,7 @@ When a user starts a long press on a widget, the widget can "capture" the pointe
 Pointer capture has a few implications:
 
 - When a widget has captured a pointer, all events from that pointer will be sent to the widget, even if the pointer isn't in the widget's hitbox.
-Conversely, no other widget can get events from the pointer.
+Conversely, no other widget can get events from the pointer (outside of bubbling).
 - The "hovered" status of other widgets won't be updated even if the pointer is over them.
 The hovered status of the capturing widget will be updated, meaning a widget that captured a pointer can still lose the "hovered" status.
 - The pointer's cursor icon will be updated as if the pointer stayed over the capturing widget.
@@ -312,7 +322,7 @@ How Masonry keeps track of which widgets accept focus is outside the scope of th
 
 The following passes should be created in RenderRoot, which will send LifecycleEvents directly to the concerned widgets:
 
-- `UPDATE_TREE`: Updates internal flags and sends RequestPanToChild.
+- `UPDATE_TREE`: Updates internal flags.
 - `UPDATE_FOCUS`: Sends FocusChanged event.
 - `UPDATE_DISABLED`: Sends DisabledChanged event.
 - `UPDATE_ANIM`: Sends AnimFrame event.
