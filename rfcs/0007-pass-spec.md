@@ -8,7 +8,7 @@ It includes these major changes:
 
 - Container widgets no longer need to recurse pass methods on their children.
 - Widgets can no longer add or remove child widgets in most passes.
-- New passes: "update" and "compose".
+- New passes: "mutate", "update" and "compose".
 
 ## Motivation
 
@@ -45,54 +45,70 @@ Then, the same method is called for each of the widget's parents, up to the root
 This behavior is known in browsers as event bubbling.
 
 
+### Animation pass
+
+The **update_anim** pass runs an animation frame, which occurs at set intervals if the widget tree includes animated widgets.
+
+It runs in depth-first preorder on all animated widgets in the tree.
+
+
 ### Rewrite passes
 
 After an event pass, some flags may have been changed, and some values may have been invalidated and need to be recomputed.
 To address these invalidations, Masonry runs a set of **rewrite passes** over the tree:
 
-- **MUTATE** pass.
-- **UPDATE_TREE** pass.
-- **UPDATE_FOCUS** pass.
-- **UPDATE_DISABLED** pass.
-- **UPDATE_ANIM** pass.
+- **mutate** pass.
+- **update_widget_tree** pass.
+- **update_disabled** pass.
+- **update_stashed** pass.
+- **update_focus_chain** pass.
+- **update_focus** pass.
 - **layout** pass.
-- **UPDATE_SCROLLS** pass.
+- **update_scrolls** pass.
 - **compose** pass.
-- **UPDATE_POINTER** pass.
+- **update_pointer** pass.
 
-(The lowercase passes have methods with matching names in the Widget trait.)
+The layout and compose passes have methods with matching names in the Widget trait.
+The update_xxx passes call the widgets' update method.
 
-By default, each of these passes returns immediately, unless pass-dependent invalidation flags are set or work is requested.
-Each pass can generally request work for later passes; for instance, the MUTATE pass can invalidate the layout of a widget, in which case the `layout` pass will run on that widget and its children and parents.
+By default, each of these passes completes immediately, unless pass-dependent invalidation flags are set or work is requested.
+Each pass can generally request work for later passes; for instance, the mutate pass can invalidate the layout of a widget, in which case the layout pass will run on that widget and its children and parents.
 
 Passes may also request work for *previous* passes, in which case all rewrite passes are run again in sequence.
-For instance, the UPDATE_POINTER may change a widget's size, requiring another layout pass.
+For instance, the update_pointer pass may change a widget's size, requiring another layout pass.
 
 To avoid infinite loops in those cases, the number of reruns has a static limit.
 If passes are still requested past that limit, they're delayed to a later frame.
 
-#### MUTATE pass
+#### The mutate pass
 
-The **MUTATE** pass runs a list of callbacks with mutable access to the widget tree.
+The **mutate** pass runs a list of callbacks with mutable access to the widget tree.
 These callbacks can be queued with the `mutate_later()` method of various context types.
 
 "Mutable access" means that those callbacks are given a `WidgetMut` to the widget that requested them, something that is otherwise only accessible from the owner of the global `RenderRoot` object (see "External Mutation" section).
 
 If a callback is scheduled to run on a widget which is deleted before the callback is run, that callback is silently dropped.
 
-*Note:* The mutate pass is meant to be *an escape hatch**.
+*Note:* The mutate pass is meant to be *an escape hatch*.
 It covers widgets which don't quite fit into the pass system and future use-cases that we didn't foresee while developing Masonry.
 It's more powerful and gives complete access to the tree, but is also slightly more expensive and less idiomatic than doing things in other passes.
 
 Widgets should try to fit their logic into the other passes, and use `mutate_later()` sparsely.
 
-#### UPDATE_XXX passes
+#### Update passes
 
 Update passes mostly run internal calculations.
-They compute if some widget's property has changed, and send it a matching `on_update_status` event (see "Status" section below).
+They compute if some widget's property has changed, and send it a matching `update` event (see "Status" section below).
 
-For instance, if a user presses `Tab` and the event isn't handled in a widget, Masonry will run the `UPDATE_FOCUS` pass, which will automatically switch keyboard focus to the next focus-accepting widget.
-Both the previously-focused widget and the newly-focused widget will get an `on_update_status` call with relevant values.
+For instance, if a user presses `Tab` and the event isn't handled in a widget, Masonry will run the `update_focus` pass, which will automatically switch keyboard focus to the next focus-accepting widget.
+Both the previously-focused widget and the newly-focused widget will get an `update` call with relevant values.
+
+#### Update tree pass
+
+The `update_widget_tree` pass is a special case.
+It is called when new widgets are added to the tree, or existing widgets are removed.
+
+It will call `register_children` widget method on container widgets whose children changed, then the `update` method with the `WidgetAdded` event on new widgets.
 
 #### Layout pass
 
@@ -118,12 +134,12 @@ For instance, if a widget in a list changes size, its siblings and parents must 
 Masonry automatically calls the `compose` methods of all widgets in the tree, in depth-first preorder, where child order is determined by their position in the `children_ids()` array.
 
 
-### Display passes
+### Render passes
 
 Event and rewrite passes can invalidate how the widget tree is presented to the user.
 
 If that happens, a redraw frame will be requested from the environment (e.g. the Winit event loop).
-When the environment applies the redraw, it will run the **display passes** as needed:
+When the environment applies the redraw, it will run the **render passes** as needed:
 
 - **paint:** The paint pass gets a Vello Scene description from each widget.
 These scenes are then stitched together in pre-order: first the parent, then its first child, then *its* first child, etc.
@@ -149,13 +165,11 @@ Calling the `edit_root_widget()` method, or any similar direct-mutation method, 
 
 ### Editing the widget tree
 
-Most passes cannot modify the widget tree.
-They can modify widgets themselves, for instance changing a label's color, but they cannot add or remove widgets from the tree.
-You cannot remove a widget's children during layout, for instance.
+Widgets can be added and removed during event and rewrite passes *except* inside layout and register_children methods.
 
-The only pass which can modify the widget tree is the MUTATE pass, triggered by either `edit_root_widget` or `mutate_later`.
+Not doing so is a logic error and may trigger debug assertions.
 
-This means you don't need to worry about the widget tree changing in any other pass.
+If you do want to add or remove a child during layout, you can always defer it with the `mutate_later` context method.
 
 
 ### Widget methods and context types
@@ -171,7 +185,8 @@ trait Widget {
     fn on_text_event(&mut self, ctx: &mut EventCtx, event: &TextEvent);
     fn on_access_event(&mut self, ctx: &mut EventCtx, event: &AccessEvent);
 
-    fn on_update_status(&mut self, ctx: &mut UpdateCtx, event: &StatusChange);
+    fn register_children(&mut self, ctx: &mut RegisterCtx);
+    fn update(&mut self, ctx: &mut UpdateCtx, event: &UpdateEvent);
     fn layout(&mut self, ctx: &mut LayoutCtx) -> Size;
     fn compose(&mut self, ctx: &mut ComposeCtx);
 
@@ -184,17 +199,18 @@ trait Widget {
 
 These methods all take a given context type as a parameter.
 Methods aside, `WidgetMut` references can provide a `MutateCtx` context.
+`WidgetRef` references can provide a `QueryCtx` context, which is used in some read-only methods.
 
 Those context types have many methods, some shared, some unique to a given pass.
 There are too many to document here, but we can lay out some general principles:
 
-- Display passes should be pure and can be skipped occasionally, therefore their context types (`PaintCtx` and `AccessCtx`) can't set invalidation flags or send signals.
+- Render passes should be pure and can be skipped occasionally, therefore their context types (`PaintCtx` and `AccessCtx`) can't set invalidation flags or send signals.
 - The `layout` and `compose` passes lay out all widgets, which are transiently invalid during the passes, therefore `LayoutCtx`and `ComposeCtx` cannot access the size and position of the `self` widget.
 They can access the layout of children if they have already been laid out.
 - For the same reason, `LayoutCtx`and `ComposeCtx` cannot create a `WidgetRef` reference to a child.
-- As mentioned above, only `MutateCtx` can create new widgets, and add and remove child widgets.
-Removing a child widget without using a `MutateCtx` method is a logical error.
-
+- `MutateCtx`, `EventCtx` and `UpdateCtx` can let you add and remove children.
+- `RegisterCtx` can't do anything except register children.
+- `QueryCtx` provides read-only information about the widget.
 
 ### Other concepts
 
@@ -212,13 +228,14 @@ Statuses include:
 - Having local focus.
 - Having active focus.
 - Being disabled.
+- Being stashed.
 
-When one of these statuses changes, the `on_update_status` is called on the widget.
-However, `on_update_status` can be called for reasons other than status changes.
+When one of these statuses changes, the `update` method is called on the widget.
+However, `update` can be called for reasons other than status changes.
 
 #### Pointer capture
 
-When a user starts a long press on a widget, the widget can "capture" the pointer.
+When a user starts a pointer click on a widget, the widget can "capture" the pointer.
 
 Pointer capture has a few implications:
 
@@ -251,6 +268,33 @@ Active focus is the default one; inactive focus is when the window your app runs
 
 In that case, we still mark the widget as focused, but with a different color to signal that e.g. typing on the keyboard won't actually affect it.
 
+#### Disabled
+
+A disabled widget is one which is visibly marked as non-interactive.
+
+It is usually grayed out, and can't receive pointer or text events.
+
+#### Stashed
+
+A stashed widget is one which is no longer "part of the logical tree", so to speak.
+
+Stashed widgets can't receive keyboard or pointer events, don't get painted, aren't part of the accessibility tree, but should still keep some state.
+
+The stereotypical stashed widget would be one inside a hidden tab in a "tab group" widget.
+
+By contrast, widgets scrolled outside the viewport are **not** stashed: they can still get text events and are part of the accessibility tree.
+
+#### Interactivity
+
+A widget is considered "interactive" if it can still get text and/or pointer events.
+Stashed and disabled widget are non-interactive.
+
+#### Safety rails
+
+When debug assertions are on, Masonry runs a bunch of checks every frame to make sure widget code doesn't have logical errors.
+
+These checks are sometimes referred to as "safety rails".
+
 
 ## Implementation strategy
 
@@ -262,33 +306,26 @@ The "User-facing explanation" section should be added to the crate's documentati
 
 ### Rename WidgetCtx to MutateCtx
 
-Since the MUTATE pass is becoming a documented part of the code, MutateCtx would be a clearer name for that context type.
+Since the mutate pass is becoming a documented part of the code, MutateCtx would be a clearer name for that context type.
 
-### Change how widgets are added
+### Create a register_children method
 
-The WidgetAdded event should be removed for `Lifecycle`, and the `WidgetPodInner` type should be removed.
+The RouteWidgetAdded event should be removed from `Lifecycle`, and replaced with a dedicated `update_widget_tree` calling `Widget::register_children`.
 
-Instead, widgets should be created and added to the widget tree as a single atomic operation.
-To keep the WidgetPod logic simple and avoid too many corner cases, this is only allowed inside the MUTATE pass.
+Widgets should be removed exclusively through the `remove_child` method in `MutateCtx`, `EventCtx` and `UpdateCtx`.
 
-`MutateCtx` should have an `add_child` and a `remove_child` method. 
-
-#### Creating widgets with grand-children
-
-If a widget needs to be created with children, then its constructor must take a `MutateCtx` reference.
-
-`MutateCtx` should have an `add_child_with` method which takes a closure and passes it a `MutateCtx` scoped to the future child.
-Calling `add_child` on that `MutateCtx` will then register it as a child of the child being created.
+Widgets should not be added during `layout` and `register_children`.
+Safety rails should be added to make sure that these two methods iterate on all their children.
 
 ### Change how methods are recursed
 
-For most passes, we should switch from requiring that widgets recurse the same methods to all their children, to having `WidgetPod` directly call those methods on the children.
+For most passes, we should switch from requiring that widgets recurse the same methods to all their children, to having pass code directly call those methods on the children.
 
 This will mostly involve changes to `WidgetPod`'s internals.
 
 For targeted passes, we should add a private method to RenderRoot which directly sends an arbitrary event to a specific widget, then propagates changes upwards.
 
-### Add MUTATE pass
+### Add mutate pass
 
 We should add a queue of callbacks with their target widget.
 Calling `FoobarCtx::mutate_later()` would add a callback to that queue.
@@ -322,16 +359,17 @@ How Masonry keeps track of which widgets accept focus is outside the scope of th
 
 The following passes should be created in RenderRoot, which will send LifecycleEvents directly to the concerned widgets:
 
-- `UPDATE_TREE`: Updates internal flags.
-- `UPDATE_FOCUS`: Sends FocusChanged event.
-- `UPDATE_DISABLED`: Sends DisabledChanged event.
-- `UPDATE_ANIM`: Sends AnimFrame event.
-- `UPDATE_SCROLLS`: Sends RequestPanToChild.
-- `UPDATE_POINTER`: Sends HotChanged and updates the cursor icon.
+- `update_widget_tree`: Sends WidgetAdded event and registers new children.
+- `update_disabled`: Sends DisabledChanged event.
+- `update_stashed`: Sends StashedChanged event.
+- `update_focus_chain`: Sends BuildFocusChain event.
+- `update_focus`: Sends FocusChanged event.
+- `update_scrolls`: Sends RequestPanToChild.
+- `update_pointer`: Sends HotChanged and updates the cursor icon.
 
 These features should progressively be moved out of the current `WidgetPod::lifecycle` method.
 
-### Replace Lifecycle and StatusChange with StatusUpdate event
+### Replace Lifecycle and StatusChange with UpdateEvent
 
 The previous sections are about progressive changes that should be implemented to take things off the lifecycle pass.
 
@@ -366,13 +404,6 @@ Because some context methods are macro-duplicated between context types, some te
 
 
 ## Drawbacks
-
-### Restricting Widget constructors
-
-Restricting Widget constructors adds another complication people learning Masonry need to be taught about.
-
-It's a complication that won't be visible to users of higher-level frameworks like Xilem.
-But it will be visible to Xilem *maintainers*; therefore that pattern should be well-documented, with various examples of code that needs to create widgets.
 
 ### Requiring complex architecture for handling passes
 
@@ -416,12 +447,9 @@ Overall, these changes together will make the new pass system more cohesive and 
 
 ## Prior art
 
-TODO
+The pass system is inspired from the web platform.
 
-- Bevy spawn
-- Compose pass: web platform.
-- pass systems in other Rust frameworks
-- Qt
+As far as I'm aware, no other Rust framework has an explicitly documented pass system.
 
 
 ## Unresolved questions
@@ -438,6 +466,13 @@ We will likely figure them out during implementation and document them in real-t
 
 
 ## Future possibilities
+
+### Restricting children creation/removal
+
+A previous version of this RFC had rules under which widgets could only create new widgets inside the mutate pass.
+This has been removed, because it proved too complicated to implement, especially on the Xilem side.
+
+A future RFC could add that restriction back.
 
 ### Reparenting children
 
